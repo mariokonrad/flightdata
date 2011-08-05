@@ -1,5 +1,11 @@
 #include <cstdio>
 #include <flmath.h>
+#include <vector>
+
+static void print(const position_t & p)
+{
+	printf("{%g, %g}", p.lat, p.lon);
+}
 
 int main(int, char **)
 {
@@ -18,11 +24,11 @@ int main(int, char **)
 	LAX = deg2rad(LAX);
 
 	s = distance_sphere(BNA, LAX);
-	printf("spherical dist            (BNA-LAX): %10.20g m   (must be: 2889615.861940 m)\n", s);
+	printf("spherical dist          (BNA-LAX): %10.20g m (must be: 2889615.861940 m)\n", s);
 	s = distance_ellipsoid_vincenty(BNA, LAX, alpha1, alpha2);
-	printf("ellipsoid dist vincenty i (BNA-LAX): %10.20g m   (approx : 2892777.000000 m, exact: 2892777.232346 m)\n", s);
+	printf("ellipsoid dist vincenty (BNA-LAX): %10.20g m (approx : 2892777.000000 m, exact: 2892777.232346 m)\n", s);
 	s = distance_ellipsoid_lambert(BNA, LAX);
-	printf("ellipsoid dist lambert    (BNA-LAX): %10.20g m   (approx : 2892777.000000 m)\n", s);
+	printf("ellipsoid dist lambert  (BNA-LAX): %10.20g m (approx : 2892777.000000 m)\n", s);
 
 	printf("\n");
 
@@ -40,6 +46,19 @@ int main(int, char **)
 	pos_LAX = rad2deg(pos_LAX);
 	printf("pos_LAX={%g, %g}\n", pos_LAX.lat, pos_LAX.lon);
 	printf("alpha2=%g\n", alpha2);
+
+	printf("\n");
+	std::vector<position_t> pos;
+	int N = 40;
+	for (int i = 0; i < N; ++i) {
+		position_t p = point_ellipsoid_vincenty(BNA, (s / (N - 1)) * i, alpha1, alpha2);
+		pos.push_back(rad2deg(p));
+	}
+	for (std::vector<position_t>::const_iterator i = pos.begin(); i < pos.end(); ++i) {
+		print(*i);
+		printf("\n");
+	}
+	printf("\n");
 
 	return 0;
 }

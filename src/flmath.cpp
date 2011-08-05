@@ -37,6 +37,8 @@ double distance_ellipsoid_vincenty(const position_t & p0, const position_t & p1,
 	// see inverse.pdf, inverse formulae
 	// http://en.wikipedia.org/wiki/Vincenty%27s_formulae
 
+	if (p0.lat == p1.lat && p0.lon == p1.lon) return 0.0;
+
 	const double f = EARTH_FLATTENING;
 	const double a = EARTH_SEMI_MAJOR_AXIS;
 	const double b = (1.0 - f) * a;
@@ -76,43 +78,28 @@ double distance_ellipsoid_vincenty(const position_t & p0, const position_t & p1,
 		cos_lambda = cos(lambda);
 
 		sin_sqr_sigma = sqr(cos_U2 * sin_lambda) + sqr(cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_lambda); // eq 14
-
 		sin_sigma = sqrt(sin_sqr_sigma); // aquire sin(sigma)
-
 		cos_sigma = sin_U1 * sin_U2 + cos_U1 * cos_U2 * cos_lambda; // eq 15
-
 		sigma = atan(sin_sigma / cos_sigma); // aquire sigma
-
 		sin_alpha = cos_U1 * cos_U2 * sin_lambda / sin_sigma; // eq 17
-
 		cos_sqr_alpha = 1.0 - sqr(sin_alpha); // aquire cos^2(alpha), prevent numerical problems
-
 		cos_2_sigma_m = cos_sigma - (2.0 * sin_U1 * sin_U2) / cos_sqr_alpha; // eq 18
-
 		cos_sqr_2_sigma_m = sqr(cos_2_sigma_m);
-
 		C = f / 16.0 * cos_sqr_alpha * (4.0 + f * (4.0 - 3.0 * cos_sqr_alpha)); // eq 10
-
 		old_lambda = lambda; // save current lambda to calc d_lambda
-
-		lambda = L + (1.0 - C) * f * sin_alpha * (sigma + C * sin_sigma * (cos_2_sigma_m + C * cos_sigma * (-1.0 + 2.0 * cos_sqr_2_sigma_m))); // eq 11
-
+		lambda = L + (1.0 - C) * f * sin_alpha
+			* (sigma + C * sin_sigma * (cos_2_sigma_m + C * cos_sigma * (-1.0 + 2.0 * cos_sqr_2_sigma_m))); // eq 11
 		d_lambda = fabs(old_lambda - lambda);
 	}
 
 	u_sqr = cos_sqr_alpha * (sqr(a) - sqr(b)) / sqr(b);
-
 	A = 1.0 + u_sqr / 16384.0 * (4096.0 + u_sqr * (-768.0 + u_sqr * (320.0 - 175.0 * u_sqr))); // eq 3
-
 	B = u_sqr / 1024.0 * (256.0 + u_sqr * (-128.0 + u_sqr * (74.0 - 47.0 * u_sqr))); // eq 4
-
 	d_sigma = B * sin_sigma
-		* (cos_2_sigma_m + B / 4.0 * (cos_sigma * (-1.0 + 2.0 * cos_sqr_2_sigma_m)) - B / 6.0 * cos_2_sigma_m * (-3.0 + 4.0 * sin_sqr_sigma) * (-3.0 + 4.0 * cos_sqr_2_sigma_m)); // eq 6
-
+		* (cos_2_sigma_m + B / 4.0 * (cos_sigma * (-1.0 + 2.0 * cos_sqr_2_sigma_m))
+			- B / 6.0 * cos_2_sigma_m * (-3.0 + 4.0 * sin_sqr_sigma) * (-3.0 + 4.0 * cos_sqr_2_sigma_m)); // eq 6
 	s = A * b * (sigma - d_sigma); // eq 7
-
 	alpha1 = atan((cos_U2 * sin_lambda) / (cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_lambda));
-
 	alpha2 = atan((cos_U1 * sin_lambda) / (-sin_U1 * cos_U2 + cos_U1 * sin_U2 * cos_lambda));
 
 	return s;
@@ -122,6 +109,8 @@ position_t point_ellipsoid_vincenty(const position_t & p0, double s, double alph
 {
 	// see inverse.pdf, direct formulae
 	// http://en.wikipedia.org/wiki/Vincenty%27s_formulae
+
+	if (fabs(s) < 1.0e-10) return p0;
 
 	const double f = EARTH_FLATTENING;
 	const double a = EARTH_SEMI_MAJOR_AXIS;
@@ -165,24 +154,17 @@ position_t point_ellipsoid_vincenty(const position_t & p0, double s, double alph
 	double L = 0.0;
 
 	for (int iteration = 0; (iteration < 200) && (d_sigma > 1.0e-12); ++iteration) {
-
 		cos_2_sigma_m = cos(2.0 * sigma1 + sigma);
-
 		cos_sqr_2_sigma_m = sqr(cos_2_sigma_m);
-
 		cos_sigma = cos(sigma);
-
 		sin_sigma = sin(sigma);
-
 		delta_sigma = B * sin_sigma
 			* (cos_2_sigma_m
 				+ B / 4.0 * (cos_sigma * (-1.0 + 2.0 * cos_sqr_2_sigma_m)
 					- B / 6.0 * cos_2_sigma_m * (-3.0 + 4.0 * sqr(sin_sigma)) * (-3.0 + 4.0 * cos_sqr_2_sigma_m)));
 
 		old_sigma = sigma;
-
 		sigma = sigma_0 + delta_sigma;
-
 		d_sigma = fabs(old_sigma - sigma);
 	}
 
@@ -190,16 +172,11 @@ position_t point_ellipsoid_vincenty(const position_t & p0, double s, double alph
 
 	p1.lat = atan((sin_U1 * cos_sigma + cos_U1 * sin_sigma * cos_alpha1)
 		/ ((1.0 - f) * sqrt(sin_sqr_alpha + sqr(sin_U1 * sin_sigma - cos_U1 * cos_sigma * cos_alpha1))));
-
 	C = (f / 16.0) * cos_sqr_alpha * (4.0 + f * (4.0 - 3.0 * cos_sqr_alpha));
-
 	lambda = atan((sin_sigma * sin_alpha1) / (cos_U1 * cos_sigma - sin_U1 * sin_sigma * cos_alpha1));
-
 	L = lambda - (1.0 - C) * f * sin_alpha
 		* (sigma + C * sin_sigma * (cos_2_sigma_m + C * cos_sigma * (-1.0 + 2.0 * cos_sqr_2_sigma_m)));
-
 	p1.lon = p0.lon + L;
-
 	alpha2 = atan(sin_alpha / (-sin_U1 * sin_sigma + cos_U1 * cos_sigma * cos_alpha1));
 
 	return p1;
